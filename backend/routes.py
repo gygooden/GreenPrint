@@ -46,7 +46,8 @@ def summary(db: Session = Depends(get_db), user=Depends(get_current_user)):
 @router.get("/suggestion")
 def suggestion(db: Session = Depends(get_db), user=Depends(get_current_user)):
     logs = db.query(HabitLog).filter(HabitLog.owner_id == user.id).all()
-    return {"suggestion": suggest_new_habit(logs)}
+    actions = [l.action for l in logs]
+    return {"suggestion": suggest_new_habit(actions)}
 
 @router.put("/{log_id}", response_model=HabitLogOut)
 def update_log(log_id: int, data: HabitLogCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):

@@ -16,22 +16,23 @@ const Summary = () => {
   const [suggestion, setSuggestion] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const [summaryRes, suggestionRes] = await Promise.all([
-          API.get('/habits/summary'),
-          API.get('/habits/suggestion'),
-        ]);
-        setSummary(summaryRes.data);
-        setSuggestion(suggestionRes.data.suggestion);
-      } catch (err) {
-        navigate('/login');
-      }
-    };
+    useEffect(() => {
+        const fetchSummary = async () => {
+            try {
+            const [summaryRes, suggestionRes] = await Promise.all([
+                API.get('/habits/summary'),
+                API.get('/habits/suggestion'),
+            ]);
+            setSummary(summaryRes.data);
+            setSuggestion(suggestionRes.data.suggestion);
+            } catch (err) {
+            console.error('Summary fetch error:', err); // Log actual issue
+            navigate('/login'); // Redirect if token is invalid or missing
+            }
+        };
 
-    fetchSummary();
-  }, [navigate]);
+        fetchSummary();
+        }, [navigate]);
 
   return (
     <>
