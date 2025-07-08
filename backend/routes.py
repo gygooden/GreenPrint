@@ -13,8 +13,14 @@ router = APIRouter()
 
 @router.post("/", response_model=HabitLogOut)
 def log_habit(data: HabitLogCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    carbon = estimate_savings(data.description or data.action)
-    log = HabitLog(action=data.action, description=data.description, carbon_saved=carbon, owner_id=user.id)
+    carbon = estimate_savings(data.description or data.action, data.duration_minutes)
+    log = HabitLog(
+        action=data.action,
+        description=data.description,
+        duration_minutes=data.duration_minutes,
+        carbon_saved=carbon,
+        owner_id=user.id
+    )
     db.add(log)
     db.commit()
     db.refresh(log)

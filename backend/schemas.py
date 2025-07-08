@@ -15,16 +15,15 @@ class Token(BaseModel):
 class HabitLogCreate(BaseModel):
     action: str
     description: Optional[str] = ""
+    duration_minutes: int
 
-class HabitLogOut(BaseModel):
+class HabitLogOut(HabitLogCreate):
     id: int
-    action: str
-    description: str
     carbon_saved: float
     date: date
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class HabitSummary(BaseModel):
     total_logs: int

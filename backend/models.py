@@ -1,23 +1,25 @@
 # backend/models.py
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, Date
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date
 from sqlalchemy.orm import relationship
+from datetime import date
 from database import Base
-import datetime
 
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    logs = relationship("HabitLog", back_populates="owner")
+    habits = relationship("HabitLog", back_populates="owner")
 
 class HabitLog(Base):
-    __tablename__ = "habit_logs"
+    __tablename__ = "habits"
     id = Column(Integer, primary_key=True, index=True)
     action = Column(String)
-    description = Column(String)
-    date = Column(Date, default=datetime.date.today)
+    description = Column(String, nullable=True)
+    duration_minutes = Column(Integer)
     carbon_saved = Column(Float)
+    date = Column(Date, default=date.today)
     owner_id = Column(Integer, ForeignKey("users.id"))
-    owner = relationship("User", back_populates="logs")
+
+    owner = relationship("User", back_populates="habits")
