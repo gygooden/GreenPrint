@@ -4,14 +4,15 @@ from schemas import HabitLogCreate, HabitLogOut, HabitSummary
 from models import HabitLog
 from auth import get_current_user
 from database import get_db
-from eco import estimate_savings, suggest_new_habit
+from eco import estimate_savings, suggest_new_habit, equivalent_impact
 from datetime import date, timedelta
 
 router = APIRouter()
 
 @router.post("/", response_model=HabitLogOut)
 def log_habit(data: HabitLogCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    carbon = estimate_savings(data.description or data.action, data.duration_minutes)
+    combined = f"{data.action} {data.description or ''}".strip()
+    carbon = estimate_savings(combined, data.duration_minutes)
     log = HabitLog(
         action=data.action,
         description=data.description,

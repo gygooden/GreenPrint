@@ -1,81 +1,92 @@
 # backend/eco.py
 
-from typing import List
+from difflib import get_close_matches
+import re
 
-# CO₂ impact in kg per 30 minutes or per action
-ECO_ACTIONS = {
-    "biking": 2.6,
-    "walking": 1.8,        
-    "public transport": 1.5,
-    "cold laundry": 0.5,
-    "line drying": 0.7,
-    "short shower": 1.0,
-    "skipped shower": 1.4,
-    "recycling": 0.3,
-    "composting": 0.8,
-    "solar": 7.5,
+# Core action map (normalized behavior → kg CO₂ saved/emitted per 30 mins or per action)
+action_map = {
+    "bike commute": 2.0,
+    "biking": 2.0,
+    "walking": 1.2,
+    "recycling": 0.4,
+    "recycled": 0.4,
+    "cold laundry": 0.6,
+    "used public transport": 1.8,
+    "transit": 1.5,
+    "composting": 0.7,
     "led lighting": 0.3,
-    "vegetarian meal": 2.0,
-    "vegan meal": 2.6,
-    "reused item": 0.4,
-    "repaired": 0.6,
-    "turning off lights": 0.2,
-    "unplugged electronics": 0.3,
+    "vegetarian": 1.8,
+    "vegetarian meal": 1.5,
+    "shower skip": 1.1,
+    "skipped shower": 1.2,
+    "solar": 6.5,
+    "reused bag": 0.2,
+    "manual lawn care": 1.0,
+    "telework": 2.5
 }
 
-EMISSION_ACTIONS = {
-    "driving": -3.6,
-    "car ride": -3.6,
-    "uber": -3.6,
-    "lyft": -3.6,
-    "gasoline use": -3.5,
-    "flying": -12.0,
-    "air travel": -12.0,
-    "long shower": -1.2,
-    "plastic bag": -0.3,
-    "fast fashion": -2.5,
-    "meat meal": -3.0,
-    "forgot recycling": -0.5,
+# Negative behaviors override
+critical_negatives = {
+    "drive": -2.2,
+    "driving": -2.2,
+    "car": -2.2,
+    "gasoline": -2.5,
+    "fly": -90.0,
+    "flight": -90.0,
+    "air travel": -90.0,
+    "long shower": -1.4,
+    "meat": -2.0,
+    "beef": -3.0,
+    "plastic": -1.0,
+    "fast food": -1.5,
+    "uber": -2.0,
+    "rideshare": -2.0
 }
 
 def normalize(text: str) -> str:
-    return text.lower().strip()
+    return text.strip().lower()
 
 def estimate_savings(action: str, duration_minutes: int = 30) -> float:
-    action = normalize(action)
+    normalized = normalize(action)
+    words = re.findall(r'\w+', normalized)  # tokenized words
 
-    for key in ECO_ACTIONS:
-        if key in action:
-            return round(ECO_ACTIONS[key] * (duration_minutes / 30), 2)
+    # Step 1: Check for any critical negative keyword
+    for key in critical_negatives:
+        if key in normalized or key in words:
+            return round(critical_negatives[key] * (duration_minutes / 30), 2)
 
-    for key in EMISSION_ACTIONS:
-        if key in action:
-            return round(EMISSION_ACTIONS[key] * (duration_minutes / 30), 2)
+    # Step 2: Exact match
+    if normalized in action_map:
+        return round(action_map[normalized] * (duration_minutes / 30), 2)
 
-    ambiguous = ["school", "homework", "study", "work", "class", "meeting"]
-    if any(word in action for word in ambiguous):
-        return 0.0
+    # Step 3: Substring match
+    for key in action_map:
+        if key in normalized:
+            return round(action_map[key] * (duration_minutes / 30), 2)
 
-    # Default fallback
-    return round(0.0, 2)
+    # Step 4: Fuzzy match
+    close = get_close_matches(normalized, action_map.keys(), n=1, cutoff=0.7)
+    if close:
+        return round(action_map[close[0]] * (duration_minutes / 30), 2)
 
-def suggest_new_habit(user_actions: List[str]) -> str:
-    lowered = [normalize(a) for a in user_actions]
-    suggestions = []
+    # Step 5: Default fallback
+    return round(0.1 * (duration_minutes / 30), 2)
 
-    if not any("bike" in a or "walk" in a for a in lowered):
-        suggestions.append("Try biking or walking instead of driving once this week.")
+def equivalent_impact(kg_co2: float):
+    phone_charges = int(abs(kg_co2) / 0.005)
+    miles_not_driven = round(abs(kg_co2) / 0.251, 1)
+    return phone_charges, miles_not_driven
 
-    if not any("vegetarian" in a or "vegan" in a for a in lowered):
-        suggestions.append("Swap one meat-based meal for a plant-based alternative.")
+def suggest_new_habit(user_actions: list[str]) -> str:
+    lower_actions = [a.lower() for a in user_actions]
 
-    if not any("cold laundry" in a for a in lowered):
-        suggestions.append("Wash a load of laundry with cold water.")
-
-    if not any("recycling" in a or "composting" in a for a in lowered):
-        suggestions.append("Sort your recycling or start composting food scraps.")
-
-    if not suggestions:
-        return "You're doing great! Keep up the sustainable habits. 🌍"
-
-    return suggestions[0]
+    if not any("bike" in a or "biking" in a for a in lower_actions):
+        return "Try biking instead of driving for one trip this week!"
+    elif not any("vegetarian" in a or "plant-based" in a for a in lower_actions):
+        return "Replace one meat-based meal with a vegetarian option tomorrow!"
+    elif not any("transit" in a or "bus" in a or "train" in a for a in lower_actions):
+        return "Take public transit for your next commute if possible!"
+    elif not any("cold laundry" in a or "cold wash" in a for a in lower_actions):
+        return "Try using cold water for your next laundry load!"
+    else:
+        return "Keep going! Every action makes a difference 🌍"

@@ -51,12 +51,16 @@ const Dashboard = () => {
         setMessage(`✏️ Updated log — ${res.data.carbon_saved.toFixed(2)} kg CO₂`);
       } else {
         res = await API.post('/habits', payload);
-        const carbon = res.data.carbon_saved.toFixed(2);
-        setMessage(
-          res.data.carbon_saved < 0
-            ? `⚠️ You emitted ${Math.abs(res.data.carbon_saved).toFixed(2)} kg CO₂`
-            : `🌱 Saved ${carbon} kg CO₂!`
-        );
+        const carbon = res.data.carbon_saved;
+        const co2 = carbon.toFixed(2);
+        const charges = Math.floor(Math.abs(carbon) / 0.005);
+        const miles = (Math.abs(carbon) / 0.251).toFixed(1);
+
+        if (carbon < 0) {
+        setMessage(`⚠️ You emitted ${Math.abs(co2)} kg CO₂ — equal to driving ${miles} miles or charging your phone ${charges} times.`);
+        } else {
+        setMessage(`🌱 Saved ${co2} kg CO₂ — like avoiding ${miles} miles of driving or charging your phone ${charges} times!`);
+        }
       }
 
       setHabit({ action: '', description: '', duration_minutes: '' });
