@@ -1,63 +1,81 @@
 # backend/eco.py
 
-import re
 from typing import List
 
-CO2_SAVINGS = {
-    "biking": 2.0,
-    "walking": 1.2,
-    "recycling": 0.4,
-    "solar": 6.5,
-    "transit": 1.5,
-    "composting": 0.7,
+# CO₂ impact in kg per 30 minutes or per action
+ECO_ACTIONS = {
+    "biking": 2.6,
+    "walking": 1.8,        
+    "public transport": 1.5,
+    "cold laundry": 0.5,
+    "line drying": 0.7,
+    "short shower": 1.0,
+    "skipped shower": 1.4,
+    "recycling": 0.3,
+    "composting": 0.8,
+    "solar": 7.5,
     "led lighting": 0.3,
-    "vegetarian": 1.8,
-    "shower skip": 1.1,
-    "cold laundry": 0.6,
-    "telecommute": 2.2,
-    "carpool": 1.6
+    "vegetarian meal": 2.0,
+    "vegan meal": 2.6,
+    "reused item": 0.4,
+    "repaired": 0.6,
+    "turning off lights": 0.2,
+    "unplugged electronics": 0.3,
 }
 
-KEYWORD_MAP = {
-    "biking": ["bike", "cycling", "biking", "commute bike"],
-    "walking": ["walk", "walking", "hike"],
-    "recycling": ["recycle", "recycled"],
-    "solar": ["solar"],
-    "transit": ["bus", "subway", "train", "public transport"],
-    "composting": ["compost"],
-    "led lighting": ["led", "light bulb"],
-    "vegetarian": ["vegetarian", "vegan", "plant-based"],
-    "shower skip": ["skipped shower", "no shower", "short shower"],
-    "cold laundry": ["cold wash", "cold laundry"],
-    "telecommute": ["remote work", "telecommute", "work from home"],
-    "carpool": ["carpool", "shared ride"],
+EMISSION_ACTIONS = {
+    "driving": -3.6,
+    "car ride": -3.6,
+    "uber": -3.6,
+    "lyft": -3.6,
+    "gasoline use": -3.5,
+    "flying": -12.0,
+    "air travel": -12.0,
+    "long shower": -1.2,
+    "plastic bag": -0.3,
+    "fast fashion": -2.5,
+    "meat meal": -3.0,
+    "forgot recycling": -0.5,
 }
+
+def normalize(text: str) -> str:
+    return text.lower().strip()
 
 def estimate_savings(action: str, duration_minutes: int = 30) -> float:
-    normalized_action = action.strip().lower()
+    action = normalize(action)
 
-    for category, keywords in KEYWORD_MAP.items():
-        for keyword in keywords:
-            if re.search(rf'\b{keyword}\b', normalized_action):
-                savings = CO2_SAVINGS.get(category, 0.1)
-                scale_base = 30 if category not in {"recycling", "led lighting", "vegetarian", "shower skip", "solar"} else 1
-                return round(savings * (duration_minutes / scale_base), 2)
+    for key in ECO_ACTIONS:
+        if key in action:
+            return round(ECO_ACTIONS[key] * (duration_minutes / 30), 2)
+
+    for key in EMISSION_ACTIONS:
+        if key in action:
+            return round(EMISSION_ACTIONS[key] * (duration_minutes / 30), 2)
+
+    ambiguous = ["school", "homework", "study", "work", "class", "meeting"]
+    if any(word in action for word in ambiguous):
+        return 0.0
 
     # Default fallback
-    return round(0.1 * (duration_minutes / 30), 2)
+    return round(0.0, 2)
 
 def suggest_new_habit(user_actions: List[str]) -> str:
-    actions_joined = " ".join(user_actions).lower()
+    lowered = [normalize(a) for a in user_actions]
+    suggestions = []
 
-    if "bike" not in actions_joined:
-        return "🚲 Try biking to work or school this week."
-    if "vegetarian" not in actions_joined:
-        return "🥗 Have a plant-based meal tomorrow!"
-    if "recycle" not in actions_joined:
-        return "♻️ Try recycling all your plastic waste today."
-    if "cold laundry" not in actions_joined:
-        return "💧 Do your laundry with cold water next time."
-    if "telecommute" not in actions_joined:
-        return "🏡 Consider working from home one day this week."
+    if not any("bike" in a or "walk" in a for a in lowered):
+        suggestions.append("Try biking or walking instead of driving once this week.")
 
-    return "🌱 Keep it up! You're making a great impact already."
+    if not any("vegetarian" in a or "vegan" in a for a in lowered):
+        suggestions.append("Swap one meat-based meal for a plant-based alternative.")
+
+    if not any("cold laundry" in a for a in lowered):
+        suggestions.append("Wash a load of laundry with cold water.")
+
+    if not any("recycling" in a or "composting" in a for a in lowered):
+        suggestions.append("Sort your recycling or start composting food scraps.")
+
+    if not suggestions:
+        return "You're doing great! Keep up the sustainable habits. 🌍"
+
+    return suggestions[0]
