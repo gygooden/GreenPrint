@@ -6,7 +6,7 @@ GreenPrint is a full-stack eco-habit tracker that allows users to log sustainabl
 - 🐍 Python (FastAPI, SQLAlchemy, JWT)
 - ⚛️ React (TypeScript)
 - 💾 SQLite (for local dev)
-- ☁️ Deployed via [your deployment platform here]
+- ☁️ Not currently deployed
 
 ## Features
 - User registration & login
