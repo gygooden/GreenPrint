@@ -1,5 +1,3 @@
-# backend/routes.py
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from schemas import HabitLogCreate, HabitLogOut, HabitSummary
@@ -42,10 +40,34 @@ def summary(db: Session = Depends(get_db), user=Depends(get_current_user)):
             streak += 1
         else:
             break
-    return {"total_logs": total, "total_carbon": carbon, "streak_days": streak}
+    return {"total_logs": total, "total_carbon": round(carbon, 2), "streak_days": streak}
 
 @router.get("/suggestion")
 def suggestion(db: Session = Depends(get_db), user=Depends(get_current_user)):
     logs = db.query(HabitLog).filter(HabitLog.owner_id == user.id).all()
-    actions = [l.action for l in logs]
-    return {"suggestion": suggest_new_habit(actions)}
+    return {"suggestion": suggest_new_habit(logs)}
+
+@router.put("/{log_id}", response_model=HabitLogOut)
+def update_log(log_id: int, data: HabitLogCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    log = db.query(HabitLog).filter_by(id=log_id, owner_id=user.id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log not found")
+    
+    log.action = data.action
+    log.description = data.description
+    log.duration_minutes = data.duration_minutes
+    log.carbon_saved = estimate_savings(data.description or data.action, data.duration_minutes)
+    
+    db.commit()
+    db.refresh(log)
+    return log
+
+@router.delete("/{log_id}")
+def delete_log(log_id: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    log = db.query(HabitLog).filter_by(id=log_id, owner_id=user.id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log not found")
+    
+    db.delete(log)
+    db.commit()
+    return {"detail": "Log deleted"}

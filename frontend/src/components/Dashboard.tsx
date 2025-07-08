@@ -20,62 +20,84 @@ const Dashboard = () => {
   });
   const [logs, setLogs] = useState<Habit[]>([]);
   const [message, setMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const navigate = useNavigate();
 
   const fetchLogs = async () => {
     try {
       const res = await API.get('/habits');
-      const sortedLogs = res.data.sort(
-        (a: Habit, b: Habit) => new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-      setLogs(sortedLogs);
+      setLogs(res.data);
     } catch {
       navigate('/login');
     }
   };
 
-  const logHabit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try {
-        const payload = {
-        ...habit,
-        duration_minutes: parseInt(habit.duration_minutes || '0', 10),
-        };
-
-        const res = await API.post('/habits', payload);
-        const saved = res.data.carbon_saved;
-
-        if (saved < 0) {
-        setMessage(`⚠️ ${Math.abs(saved).toFixed(2)} kg CO₂ emitted. Try a greener alternative next time.`);
-        } else if (saved === 0) {
-        setMessage(`ℹ️ Neutral action. Consider a greener habit to save CO₂.`);
-        } else {
-        setMessage(`🌱 ${saved.toFixed(2)} kg CO₂ saved!`);
-        }
-
-        setHabit({ action: '', description: '', duration_minutes: '' });
-        fetchLogs();
-    } catch (err) {
-        setMessage('❌ Failed to log habit.');
-    }
-    };
-
   useEffect(() => {
     fetchLogs();
   }, []);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      action: habit.action,
+      description: habit.description,
+      duration_minutes: parseInt(habit.duration_minutes || '0', 10),
+    };
+
+    try {
+      let res;
+      if (editingId !== null) {
+        res = await API.put(`/habits/${editingId}`, payload);
+        setMessage(`✏️ Updated log — ${res.data.carbon_saved.toFixed(2)} kg CO₂`);
+      } else {
+        res = await API.post('/habits', payload);
+        const carbon = res.data.carbon_saved.toFixed(2);
+        setMessage(
+          res.data.carbon_saved < 0
+            ? `⚠️ You emitted ${Math.abs(res.data.carbon_saved).toFixed(2)} kg CO₂`
+            : `🌱 Saved ${carbon} kg CO₂!`
+        );
+      }
+
+      setHabit({ action: '', description: '', duration_minutes: '' });
+      setEditingId(null);
+      fetchLogs();
+    } catch {
+      setMessage('❌ Failed to submit habit.');
+    }
+  };
+
+  const handleEdit = (log: Habit) => {
+    setHabit({
+      action: log.action,
+      description: log.description,
+      duration_minutes: log.duration_minutes.toString(),
+    });
+    setEditingId(log.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this habit log?')) return;
+    try {
+      await API.delete(`/habits/${id}`);
+      setLogs(logs.filter(l => l.id !== id));
+      setMessage('🗑️ Log deleted successfully');
+    } catch {
+      setMessage('❌ Failed to delete log.');
+    }
+  };
+
   return (
     <>
       <Navbar />
-      <div style={{ padding: '2rem', maxWidth: '600px', margin: 'auto' }}>
-        <h2>Log a Habit</h2>
-        <form onSubmit={logHabit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ padding: '2rem', maxWidth: '650px', margin: 'auto' }}>
+        <h2>{editingId !== null ? 'Edit Habit' : 'Log a Habit'}</h2>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <input
             type="text"
             value={habit.action}
-            placeholder="Action (e.g., biking)"
+            placeholder="Action (e.g., biking, shower, driving)"
             onChange={e => setHabit({ ...habit, action: e.target.value })}
             required
           />
@@ -95,33 +117,26 @@ const Dashboard = () => {
             onChange={e => setHabit({ ...habit, duration_minutes: e.target.value })}
             required
           />
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Logging...' : 'Log Habit'}
-          </button>
+          <button type="submit">{editingId !== null ? 'Update Habit' : 'Log Habit'}</button>
         </form>
 
-        {message && (
-          <p
-            style={{
-              color: message.includes('❌') ? 'red' : 'green',
-              marginTop: '1rem',
-              fontWeight: 'bold',
-            }}
-          >
-            {message}
-          </p>
-        )}
+        {message && <p style={{ marginTop: '1rem', color: message.includes('❌') ? 'red' : message.includes('⚠️') ? 'orange' : 'green' }}>{message}</p>}
 
         <h3 style={{ marginTop: '2rem' }}>Recent Logs</h3>
         <ul style={{ listStyleType: 'none', padding: 0 }}>
           {logs.map(log => (
-            <li key={log.id} style={{ marginBottom: '14px' }}>
-              <strong>{log.date}</strong>: {log.action} ({log.duration_minutes} min) —{' '}
-              <span style={{ color: 'green' }}>{log.carbon_saved.toFixed(2)} kg CO₂</span>
-              {log.carbon_saved >= 5 && <span title="High impact"> 💥</span>}
-              {log.description && (
-                <div style={{ fontStyle: 'italic', color: '#555' }}>“{log.description}”</div>
-              )}
+            <li key={log.id} style={{ marginBottom: '16px', borderBottom: '1px solid #ccc', paddingBottom: '8px' }}>
+              <div>
+                <strong>{log.date}</strong>: {log.action} ({log.duration_minutes} min) —{' '}
+                <span style={{ color: log.carbon_saved < 0 ? 'orange' : 'green' }}>
+                  {log.carbon_saved.toFixed(2)} kg CO₂
+                </span>
+              </div>
+              {log.description && <div style={{ fontStyle: 'italic' }}>“{log.description}”</div>}
+              <div style={{ marginTop: '6px' }}>
+                <button type="button" onClick={() => handleEdit(log)} style={{ marginRight: '8px' }}>✏️ Edit</button>
+                <button type="button" onClick={() => handleDelete(log.id)}>🗑️ Delete</button>
+              </div>
             </li>
           ))}
         </ul>
