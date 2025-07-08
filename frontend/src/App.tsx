@@ -4,6 +4,7 @@ import Register from './components/Register';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Summary from './components/Summary';
+import Logout from './components/Logout';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/summary" element={<Summary />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/logout" element={<Logout />} />
       </Routes>
     </BrowserRouter>
   );
