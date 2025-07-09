@@ -1,10 +1,11 @@
+from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from schemas import HabitLogCreate, HabitLogOut, HabitSummary
 from models import HabitLog
 from auth import get_current_user
 from database import get_db
-from eco import estimate_savings, suggest_new_habit, equivalent_impact
+from eco import estimate_savings, suggest_new_habit
 from datetime import date, timedelta
 
 router = APIRouter()
@@ -42,6 +43,15 @@ def summary(db: Session = Depends(get_db), user=Depends(get_current_user)):
         else:
             break
     return {"total_logs": total, "total_carbon": round(carbon, 2), "streak_days": streak}
+
+@router.get("/summary/trend")
+def carbon_trend(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    logs = db.query(HabitLog).filter(HabitLog.owner_id == user.id).all()
+    daily_data = defaultdict(float)
+    for log in logs:
+        key = log.date.strftime("%Y-%m-%d")
+        daily_data[key] += log.carbon_saved
+    return [{"date": day, "carbon": round(value, 2)} for day, value in sorted(daily_data.items())]
 
 @router.get("/suggestion")
 def suggestion(db: Session = Depends(get_db), user=Depends(get_current_user)):

@@ -2,8 +2,15 @@ import React, { useEffect, useState } from 'react';
 import API from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
-
-const formatKg = (value: number) => new Intl.NumberFormat().format(value);
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer
+} from 'recharts';
 
 interface Summary {
   total_logs: number;
@@ -11,33 +18,43 @@ interface Summary {
   streak_days: number;
 }
 
+interface TrendPoint {
+  date: string;
+  carbon: number;
+}
+
+const formatKg = (value: number) => new Intl.NumberFormat().format(value);
+
 const Summary = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [suggestion, setSuggestion] = useState('');
+  const [trendData, setTrendData] = useState<TrendPoint[]>([]);
   const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchSummary = async () => {
-            try {
-            const [summaryRes, suggestionRes] = await Promise.all([
-                API.get('/habits/summary'),
-                API.get('/habits/suggestion'),
-            ]);
-            setSummary(summaryRes.data);
-            setSuggestion(suggestionRes.data.suggestion);
-            } catch (err) {
-            console.error('Summary fetch error:', err); // Log actual issue
-            navigate('/login'); // Redirect if token is invalid or missing
-            }
-        };
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const [summaryRes, suggestionRes, trendRes] = await Promise.all([
+          API.get('/habits/summary'),
+          API.get('/habits/suggestion'),
+          API.get('/habits/summary/trend'),
+        ]);
+        setSummary(summaryRes.data);
+        setSuggestion(suggestionRes.data.suggestion);
+        setTrendData(trendRes.data);
+      } catch (err) {
+        console.error('Summary fetch error:', err);
+        navigate('/login');
+      }
+    };
 
-        fetchSummary();
-        }, [navigate]);
+    fetchSummary();
+  }, [navigate]);
 
   return (
     <>
       <Navbar />
-      <div style={{ padding: '2rem', maxWidth: '600px', margin: 'auto' }}>
+      <div style={{ padding: '2rem', maxWidth: '800px', margin: 'auto' }}>
         <h2>Your GreenPrint Summary</h2>
 
         {!summary ? (
@@ -58,6 +75,21 @@ const Summary = () => {
 
         <h3>Suggestion</h3>
         <p>{suggestion || 'Fetching your personalized suggestion...'}</p>
+
+        {trendData.length > 0 && (
+          <>
+            <h3 style={{ marginTop: '2rem' }}>CO₂ Saved Over Time</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={trendData}>
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+                <Line type="monotone" dataKey="carbon" stroke="#2f855a" />
+              </LineChart>
+            </ResponsiveContainer>
+          </>
+        )}
       </div>
     </>
   );
