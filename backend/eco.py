@@ -78,15 +78,15 @@ def equivalent_impact(kg_co2: float):
     return phone_charges, miles_not_driven
 
 def suggest_new_habit(user_actions: list[str]) -> str:
-    lower_actions = [a.lower() for a in user_actions]
+    lower_actions = [a.activity.lower() for a in user_actions]
 
     if not any("bike" in a or "biking" in a for a in lower_actions):
-        return "Try biking instead of driving for one trip this week!"
+        return "Try biking instead of driving on a trip this week!"
     elif not any("vegetarian" in a or "plant-based" in a for a in lower_actions):
-        return "Replace one meat-based meal with a vegetarian option tomorrow!"
+        return "Replace one meat-based meal with a vegetarian option!"
     elif not any("transit" in a or "bus" in a or "train" in a for a in lower_actions):
-        return "Take public transit for your next commute if possible!"
+        return "Try to take public transit for your next commute!"
     elif not any("cold laundry" in a or "cold wash" in a for a in lower_actions):
-        return "Try using cold water for your next laundry load!"
+        return "Try to use cold water for your next laundry load!"
     else:
         return "Keep going! Every action makes a difference 🌍"
