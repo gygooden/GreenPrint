@@ -78,7 +78,7 @@ def equivalent_impact(kg_co2: float):
     return phone_charges, miles_not_driven
 
 def suggest_new_habit(user_actions: list[str]) -> str:
-    lower_actions = [a.activity.lower() for a in user_actions]
+    lower_actions = [a.lower() for a in user_actions if isinstance(a, str)]
 
     if not any("bike" in a or "biking" in a for a in lower_actions):
         return "Try biking instead of driving on a trip this week!"
